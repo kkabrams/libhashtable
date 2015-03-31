@@ -160,6 +160,6 @@ void *ht_getvalue(struct hashtable *ht,char *key) {
 }
 
 //delete the node in the linked list in the table entry that matches the key.
-void *ht_delete(struct hashtable *ht,char *key) {
+void ht_delete(struct hashtable *ht,char *key) {
  ll_delete(ht_getentry(ht,key));
 }
