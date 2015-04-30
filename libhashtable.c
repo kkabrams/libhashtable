@@ -3,7 +3,7 @@
 #include <string.h>
 #include "hashtable.h"
 
-/*
+/* _A_
 struct entry {//linked list node.
  char *original;
  void *target;
@@ -20,7 +20,7 @@ struct hashtable {
  struct hitem **bucket;
  int *keys;
 };
-*/
+ _B_ */
 
 unsigned short hash(char *key) {//maybe use a seeded rand()? :) Thanks FreeArtMan
  return (strlen(key)<<8)+(key[0]<<4)+key[1];

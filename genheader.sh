@@ -1,3 +1,3 @@
 #!/bin/sh
-cat libhashtable.c | head -n 22 | tail -n 16 > hashtable.h
+cat libhashtable.c | grep -A 100 _A_ | grep -B 100 _B_ | grep -v "_[AB]_" > hashtable.h
 cat libhashtable.c | grep '(.*) *{' | egrep -v 'if|for|while' | sed 's/ {/;/' >> hashtable.h
