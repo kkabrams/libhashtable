@@ -1,7 +1,7 @@
-struct entry {//linked list node.
+struct entry {
  char *original;
  void *target;
- struct entry *prev;// doubly linked list. why?
+ struct entry *prev;
  struct entry *next;
 };
 
@@ -10,12 +10,14 @@ struct hitem {
 };
 
 struct hashtable {
- int kl;//number of keys in the table
+ unsigned int kl;
+ unsigned int size;
  struct hitem **bucket;
- int *keys;
+ unsigned int *keys;
 };
-unsigned short hash(char *key);//maybe use a seeded rand()? :) Thanks FreeArtMan
-void inittable(struct hashtable *ht,int tsize);
+unsigned int murmur3_32(const char *key, unsigned int len, unsigned int seed);
+unsigned int hash(char *key);
+void inittable(struct hashtable *ht,unsigned int tsize);
 void ll_delete(struct entry *ll);
 void ll_destroy(struct entry *ll);
 void ht_destroy(struct hashtable *ht);
@@ -25,4 +27,5 @@ struct entry *ll_getentry(struct entry *start,char *key);
 struct entry *ht_getentry(struct hashtable *ht,char *key);
 struct entry *ht_getnode(struct hashtable *ht,char *key);
 void *ht_getvalue(struct hashtable *ht,char *key);
+struct hitem *ht_getbucket(struct hashtable *ht,char *key);
 void ht_delete(struct hashtable *ht,char *key);

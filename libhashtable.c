@@ -4,10 +4,10 @@
 #include "hashtable.h"
 
 /* _A_
-struct entry {//linked list node.
+struct entry {
  char *original;
  void *target;
- struct entry *prev;// doubly linked list. why?
+ struct entry *prev;
  struct entry *next;
 };
 
@@ -16,23 +16,78 @@ struct hitem {
 };
 
 struct hashtable {
- int kl;//number of keys in the table
+ unsigned int kl;
+ unsigned int size;
  struct hitem **bucket;
- int *keys;
+ unsigned int *keys;
 };
  _B_ */
 
-unsigned short hash(char *key) {//maybe use a seeded rand()? :) Thanks FreeArtMan
- return (strlen(key)<<8)+(key[0]<<4)+key[1];
+/*stolen from wikipedia!*/
+unsigned int murmur3_32(const char *key, unsigned int len, unsigned int seed) {
+        static const uint32_t c1 = 0xcc9e2d51;
+        static const uint32_t c2 = 0x1b873593;
+        static const uint32_t r1 = 15;
+        static const uint32_t r2 = 13;
+        static const uint32_t m = 5;
+        static const uint32_t n = 0xe6546b64;
+
+        uint32_t hash = seed;
+
+        const int nblocks = len / 4;
+        const uint32_t *blocks = (const uint32_t *) key;
+        const uint8_t *tail;
+        uint32_t k1;
+        int i;
+        for (i = 0; i < nblocks; i++) {
+                uint32_t k = blocks[i];
+                k *= c1;
+                k = (k << r1) | (k >> (32 - r1));
+                k *= c2;
+
+                hash ^= k;
+                hash = ((hash << r2) | (hash >> (32 - r2))) * m + n;
+        }
+
+        tail = (const uint8_t *) (key + nblocks * 4);
+        k1 = 0;
+
+        switch (len & 3) {
+        case 3:
+                k1 ^= tail[2] << 16;
+        case 2:
+                k1 ^= tail[1] << 8;
+        case 1:
+                k1 ^= tail[0];
+                k1 *= c1;
+                k1 = (k1 << r1) | (k1 >> (32 - r1));
+                k1 *= c2;
+                hash ^= k1;
+        }
+
+        hash ^= len;
+        hash ^= (hash >> 16);
+        hash *= 0x85ebca6b;
+        hash ^= (hash >> 13);
+        hash *= 0xc2b2ae35;
+        hash ^= (hash >> 16);
+
+        return hash;
 }
 
-void inittable(struct hashtable *ht,int tsize) {
+unsigned int hash(char *key) {
+// return 0;//use this like a linked list.*key*strlen(key);
+ return murmur3_32(key,strlen(key),0);
+}
+
+void inittable(struct hashtable *ht,unsigned int tsize) {
  int i;
  ht->bucket=malloc(sizeof(char *)*tsize);
  ht->kl=0;
  ht->keys=malloc(sizeof(int *)*tsize);
+ ht->size=tsize;
  if(!ht) {
-  fprintf(stderr,"malloc error 6 in hash table.\n");
+  fprintf(stderr,"malloc error 6 in hash table.\n");//dafuq?
   return;
  }
  for(i=0;i<tsize;i++) {
@@ -41,19 +96,9 @@ void inittable(struct hashtable *ht,int tsize) {
 }
 
 void ll_delete(struct entry *ll) {
- //do I have to free() any of this shit?
- //keys are always allocated. strdup().
- //gotta free that. anything else isn't my fault.
- if(ll->prev) {
-  ll->prev->next=ll->next;
- } else {
-  //I am the first node.
- }
- if(ll->next) {
-  ll->next->prev=ll->prev;
- } else {
-  //I am the last node.
- }
+ if(!ll) return;
+ if(ll->prev) ll->prev->next=ll->next;
+ if(ll->next) ll->next->prev=ll->prev;
  free(ll);//all these nodes are malloc()d.
 }
 
@@ -61,9 +106,6 @@ void ll_destroy(struct entry *ll) {
  if(ll->next) ll_destroy(ll->next);
  free(ll->original);
  free(ll);
- //destroy_this_node.
- //ll->original //malloc()d
- //ll->target //I dunno where this comes from.
 }
 
 void ht_destroy(struct hashtable *ht) {
@@ -86,13 +128,13 @@ void ht_freevalues(struct hashtable *ht) {
  }
 }
 
-//this seems too complicated.
 int ht_setkey(struct hashtable *ht,char *key,void *value) {
- unsigned short h;
+ unsigned int h;
  struct entry *tmp;
  int i;
  if(!key) key="(null)";
- h=hash(key);
+ h=hash(key)%(ht->size);
+ //printf("setkey: %s\nhash: %u\n",key,h);
  for(i=0;i<ht->kl;i++) {
   if(ht->keys[i]==h) break;
  }
@@ -131,19 +173,19 @@ int ht_setkey(struct hashtable *ht,char *key,void *value) {
 
 struct entry *ll_getentry(struct entry *start,char *key) {
  struct entry *m;
- if(!key) return NULL;
- if(!start) return NULL;
+ if(!key) return 0;
+ if(!start) return 0;
  for(m=start;m;m=m->next) {
-  if(!strncmp(key,m->original,strlen(m->original)) && (key[strlen(m->original)]==' ' || key[strlen(m->original)] == 0)) {//this allows !c to get called when using !c2 if !c2 is defined after !c. >_>
+  if(!strcmp(key,m->original)) {
    return m;
   }
  }
- return NULL;
+ return 0;
 }
 
 //returns the table entry (a linked list) at the key.
 struct entry *ht_getentry(struct hashtable *ht,char *key) {
- unsigned short h=hash(key);
+ unsigned int h=hash(key)%(ht->size);
  if(!ht->bucket[h]) return NULL;
  return ht->bucket[h]->ll;
 }
@@ -156,10 +198,32 @@ struct entry *ht_getnode(struct hashtable *ht,char *key) {
 //you'll probably want to use me.
 void *ht_getvalue(struct hashtable *ht,char *key) {
  struct entry *tmp=ll_getentry(ht_getentry(ht,key),key);
+ //printf("getvalue: %s\nhash: %u\n",key,hash(key)%(ht->size));
  return tmp?tmp->target:0;
+}
+
+struct hitem *ht_getbucket(struct hashtable *ht,char *key) {
+ return ht->bucket[hash(key)%ht->size];
 }
 
 //delete the node in the linked list in the table entry that matches the key.
 void ht_delete(struct hashtable *ht,char *key) {
- ll_delete(ht_getentry(ht,key));
+ int i;
+ unsigned int h=hash(key)%(ht->size);
+
+//working on this stuff:
+ struct hitem *bucket=ht_getbucket(ht,key);
+ struct entry *first=ht_getentry(ht,key);
+ struct entry *tmp=ll_getentry(first,key);
+
+ if(!(tmp->next || tmp->prev)) bucket->ll=0;
+ else ll_delete(tmp);
+
+ for(i=0;i<ht->kl;i++) {
+  if(ht->keys[i]==h) break;
+ }
+ for(;i<ht->kl;i++) {
+  ht->keys[i]=ht->keys[i+1];
+ }
+ ht->kl--;
 }

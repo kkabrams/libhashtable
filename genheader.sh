@@ -1,3 +1,4 @@
 #!/bin/sh
-cat libhashtable.c | grep -A 100 _A_ | grep -B 100 _B_ | grep -v "_[AB]_" > hashtable.h
-cat libhashtable.c | grep '(.*) *{' | egrep -v 'if|for|while' | sed 's/ {/;/' >> hashtable.h
+L=$(wc -l libhashtable.c | tr -s ' ' | cut '-d ' -f2)
+cat libhashtable.c | grep -A "$L" _A_ | grep -B "$L" _B_ | grep -v "_[AB]_" > hashtable.h
+cat libhashtable.c | grep '(.*) *{' | egrep -v 'switch|if|for|while' | sed 's/ {/;/' >> hashtable.h
