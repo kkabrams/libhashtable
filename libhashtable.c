@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include "hashtable.h"
 
+//#define DEBUG
+
 /* _A_
 struct entry {
  char *original;
@@ -135,7 +137,9 @@ int ht_setkey(struct hashtable *ht,char *key,void *value) {
  int i;
  if(!key) key="(null)";
  h=hash(key)%(ht->size);
- //printf("setkey: %s\nhash: %u\n",key,h);
+#ifdef DEBUG
+ printf("setkey: %s\nhash: %u\n",key,h);
+#endif
  for(i=0;i<ht->kl;i++) {
   if(ht->keys[i]==h) break;
  }
@@ -199,7 +203,9 @@ struct entry *ht_getnode(struct hashtable *ht,char *key) {
 //you'll probably want to use me.
 void *ht_getvalue(struct hashtable *ht,char *key) {
  struct entry *tmp=ll_getentry(ht_getentry(ht,key),key);
- //printf("getvalue: %s\nhash: %u\n",key,hash(key)%(ht->size));
+#ifdef DEBUG
+ printf("getvalue: %s\nhash: %u\n",key,hash(key)%(ht->size));
+#endif
  return tmp?tmp->target:0;
 }
 
