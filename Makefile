@@ -4,7 +4,7 @@ TARGET=libhashtable.so
 
 all: $(TARGET)
 
-$(TARGET):
+$(TARGET): libhashtable.c
 	./genheader.sh
 	$(CC) $(CFLAGS) -o $(TARGET) libhashtable.c
 
