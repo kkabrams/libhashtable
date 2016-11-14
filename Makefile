@@ -1,16 +1,22 @@
-LDFLAGS=-lhashtable -Llibhashtable
+### why the fuck is this here? LDFLAGS=-lhashtable -Llibhashtable
 CFLAGS=-fpic -shared -pedantic -Wall
+PREFIX=/usr/local
 TARGET=libhashtable.so
 
 all: $(TARGET)
 
-$(TARGET): libhashtable.c
+libhashtable.h:
 	./genheader.sh
-	$(CC) $(CFLAGS) -o $(TARGET) libhashtable.c
+
+$(TARGET): libhashtable.c libhashtable.h
 
 clean:
 	rm -f libhashtable.so
 
 install:
-	cp $(TARGET) /usr/local/lib/$(TARGET)
-	cp hashtable.h /usr/local/include/hashtable.h
+	cp $(TARGET) $(PREFIX)/lib/$(TARGET)
+	cp hashtable.h $(PREFIX)/include/hashtable.h
+
+uninstall:
+	rm $(PREFIX)/lib/$(TARGET)
+	rm $(PREFIX)/include/hashtable.h
