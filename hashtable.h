@@ -1,6 +1,6 @@
-struct entry {
- char *original;
- void *target;
+struct entry {//wtf is with my stupid choice of names?
+ void *target;//value
+ char *original;//key
  struct entry *prev;
  struct entry *next;
 };
@@ -17,6 +17,8 @@ struct hashtable {
 };
 unsigned int murmur3_32(const char *key, unsigned int len, unsigned int seed);
 unsigned int hash(char *key);
+unsigned int ht_getkeycount(struct hashtable *ht);
+char **ht_getkeys(struct hashtable *ht,unsigned int *len);
 void inittable(struct hashtable *ht,unsigned int tsize);
 void ll_delete(struct entry *ll);
 void ll_destroy(struct entry *ll);
@@ -28,4 +30,5 @@ struct entry *ht_getentry(struct hashtable *ht,char *key);
 struct entry *ht_getnode(struct hashtable *ht,char *key);
 void *ht_getvalue(struct hashtable *ht,char *key);
 struct hitem *ht_getbucket(struct hashtable *ht,char *key);
+void ht_dump(struct hashtable *ht);
 void ht_delete(struct hashtable *ht,char *key);

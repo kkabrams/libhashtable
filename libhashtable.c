@@ -7,9 +7,9 @@
 //#define DEBUG
 
 /* _A_
-struct entry {
- char *original;
- void *target;
+struct entry {//wtf is with my stupid choice of names?
+ void *target;//value
+ char *original;//key
  struct entry *prev;
  struct entry *next;
 };
@@ -80,7 +80,40 @@ unsigned int murmur3_32(const char *key, unsigned int len, unsigned int seed) {
 
 unsigned int hash(char *key) {
 // return 0;//use this like a linked list.*key*strlen(key);
+ if(!key) return fprintf(stderr,"piss.\n"),0;
  return murmur3_32(key,strlen(key),0);
+}
+
+unsigned int ht_getkeycount(struct hashtable *ht) {
+  struct entry *m;
+  int key_count=0,i;
+  for(i=0;i<ht->kl;i++) //who needs braces? not us. our teeth are straight. :|
+    if(ht->bucket[ht->keys[i]])
+      for(m=ht->bucket[ht->keys[i]]->ll;m;m=m->next)
+        key_count++;
+  return key_count;
+}
+
+//returns an array of pointers to the keys stored in the hashtable
+//free the pointer returned? or maybe we should just pass by reference?
+char **ht_getkeys(struct hashtable *ht,unsigned int *len) {
+  int i,j;
+  //need to count up how many entries are in the hash table?
+  //should the hashtable keep track of that info by itself?
+  char **a;
+  struct entry *m;
+  *len=ht_getkeycount(ht);
+  a=malloc(sizeof(char *) * *len);
+  j=0;
+  for(i=0;i<ht->kl;i++) {//for each key...
+    if(ht->bucket[ht->keys[i]]) {
+      for(m=ht->bucket[ht->keys[i]]->ll;m;m=m->next) {
+        a[j]=m->original;
+        j++;
+      }
+    }
+  }
+  return a;
 }
 
 void inittable(struct hashtable *ht,unsigned int tsize) {
@@ -181,8 +214,12 @@ struct entry *ll_getentry(struct entry *start,char *key) {
  if(!key) return 0;
  if(!start) return 0;
  for(m=start;m;m=m->next) {
-  if(!strcmp(key,m->original)) {
-   return m;
+  if(m->original) {
+   if(!strcmp(key,m->original)) {
+    return m;
+   }
+  } else {
+   fprintf(stderr,"shit. %s this element in the linked list doesn't have a name. wtf?\n",key);
   }
  }
  return 0;
@@ -190,6 +227,7 @@ struct entry *ll_getentry(struct entry *start,char *key) {
 
 //returns the table entry (a linked list) at the key.
 struct entry *ht_getentry(struct hashtable *ht,char *key) {
+ if(!ht) return NULL;
  unsigned int h=hash(key)%(ht->size);
  if(!ht->bucket[h]) return NULL;
  return ht->bucket[h]->ll;
@@ -213,24 +251,67 @@ struct hitem *ht_getbucket(struct hashtable *ht,char *key) {
  return ht->bucket[hash(key)%ht->size];
 }
 
+void ht_dump(struct hashtable *ht) {
+  int i;
+  struct entry *m;
+
+  unsigned int key_count=0;
+  char **keys=ht_getkeys(ht,&key_count);
+  printf("amount of keys: %d\n",key_count);
+  for(i=0;i<key_count;i++) {
+    printf("key: %s hash: %d\n",keys[i],hash(keys[i]) % ht->size);
+  }
+
+  printf("kl: %d\n",ht->kl);
+  for(i=0;i<ht->kl;i++) {
+    printf("looking into hash: %d\n",ht->keys[i]);
+    if(ht->bucket[ht->keys[i]]) {
+      printf("bucket not empty!: %d\n",ht->keys[i]);
+      printf("printing its linked list:\n");
+      for(m=ht->bucket[ht->keys[i]]->ll;m;m=m->next) {
+        printf("  key: %s hash: %08x\n",m->original,ht->keys[i]);
+      }
+      printf("end of linked list\n");
+    } else {
+      printf("empty bucket: %d\n",ht->keys[i]);
+    }
+  }
+}
+
 //delete the node in the linked list in the table entry that matches the key.
 void ht_delete(struct hashtable *ht,char *key) {
  int i;
  unsigned int h=hash(key)%(ht->size);
+ struct entry *tmp;
 
-//working on this stuff:
- struct hitem *bucket=ht_getbucket(ht,key);
- struct entry *first=ht_getentry(ht,key);
- struct entry *tmp=ll_getentry(first,key);
-
- if(!(tmp->next || tmp->prev)) bucket->ll=0;
- else ll_delete(tmp);
-
- for(i=0;i<ht->kl;i++) {
-  if(ht->keys[i]==h) break;
+ struct hitem *bucket=ht->bucket[h];
+ if(!bucket) { fprintf(stderr,"attempted to ht_delete key: %s which had a non-existing bucket.\n",key) ; return; }
+ if(!bucket->ll) { fprintf(stderr,"attempted to ht_delete key: %s which has a bucket with a null ll\n",key) ; return; }
+ for(tmp=bucket->ll;tmp;tmp=tmp->next) {
+   if(!strcmp(tmp->original,key)) break;//we found it
  }
- for(;i<ht->kl;i++) {
-  ht->keys[i]=ht->keys[i+1];
+ if(!tmp) { fprintf(stderr,"attempted to ht_delete key: %s which isn't in the linked list for its bucket\n",key); return; }
+ tmp->target=0;
+ if(tmp->next == 0 && tmp->prev == 0) {//only dump the bucket if it has only one thing
+   free(bucket->ll);//btw, bucket->ll == tmp
+   free(bucket);
+   ht->bucket[h % ht->size]=0;
+
+   for(i=0;i<ht->kl;i++) {
+     if(ht->keys[i] == h) break;
+   }
+   for(;i<ht->kl;i++) {
+     ht->keys[i]=ht->keys[i+1];
+   }
+   ht->kl--;
  }
- ht->kl--;
+ else {
+   if(tmp->next) tmp->next->prev=tmp->prev;
+   if(tmp->prev) tmp->prev->next=tmp->next;
+   else bucket->ll=tmp->next;//we deleted the start of the linked list, we need to tell our bucket about it.
+   free(tmp);
+ }
+ if(ht->kl < 0) {
+   abort();
+ }
 }
