@@ -144,6 +144,7 @@ void ll_destroy(struct entry *ll) {
  free(ll);
 }
 
+//this is to just free the buckets and the linked list structs
 void ht_destroy(struct hashtable *ht) {
  int i=0;
  for(i=0;i<ht->kl;i++) {
@@ -153,14 +154,17 @@ void ht_destroy(struct hashtable *ht) {
 }
 
 void ll_freevalues(struct entry *ll) {//only use if you malloc your table.
- if(ll->next) ll_destroy(ll->next);
+ if(!ll) return;
+ if(ll->next) ll_freevalues(ll->next);
  free(ll->target);
 }
 
 void ht_freevalues(struct hashtable *ht) {
  int i;
  for(i=0;i<ht->kl;i++) {
-  ll_freevalues(ht->bucket[ht->keys[i]]->ll);
+  if(ht->bucket[ht->keys[i]]) {
+    ll_freevalues(ht->bucket[ht->keys[i]]->ll);
+  }
  }
 }
 
